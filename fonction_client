@@ -1,10 +1,14 @@
-#!/bin/bash
+#!/bin/bash  
 
-# [VSH][-OPTION][NOM-SERVEUR][PORT][NOM_ARCHIVE]
+extract() {
+      sendmsg "extract" >> archiv
+      MakeFiles archiv
+      arrangeFiles archiv
+      mv archiv poubelle
+}
 
 
-
-function CheckPort() {
+CheckPort() {
 #verifie si le port est correct
 port=$1
 
@@ -83,13 +87,15 @@ function GetFileSize() {
 function GetFileContent() {
 #prend une archive en argument 1
 #prend une ligne en argument 2
-#exemple : toto2 -rw-r--r-- 249 4 10
+#fichier="toto2 -rw-r--r-- 249 4 10"
+#fichier=$(cat $1 | grep -e "$2")
 
 fichier=$2
+echo $fichier
 
-
-    fileligne=$(echo $fichier | grep -E -o '[0-9]* [0-9]*$')
+    fileligne=$(echo $fichier | grep -o '[0-9]* [0-9]*$')
     #exemple 4:10
+	echo $fileligne	
     ligneBody=$(GetLNBody $1)
 
     
@@ -98,7 +104,9 @@ fichier=$2
     #exemple : start=4 et end=10
 
     start=$(($start+$ligneBody))
+	echo $start
     end=$(($end+$start))
+	echo $end
     
 
     if [[ $(GetFileSize "$fichier") -ne 0 ]]; then
@@ -207,10 +215,13 @@ function GetEchelon() {
 }
 
 
-function makeFiles(){
-IFS=
-GetHeader $1 | grep -v 'directory' | grep -v '@' > .prep.txt
+function MakeFiles(){
+echo "tu es dans mec files"	
 
+IFS=
+
+GetHeader $1 | grep -v 'directory' | grep -v '@' > prep.txt
+echo "tu es la"
 	while IFS= read -r ligne; do
 		namefile=$(GetFileName $ligne)
 		access=$(GetAccessPermission $ligne)
@@ -220,32 +231,75 @@ GetHeader $1 | grep -v 'directory' | grep -v '@' > .prep.txt
 			mkdir $namefile
 		else
 			GetFileContent $1 $ligne > $namefile
+			echo $namefile
 		fi
 
 		chmod $access $namefile
 
-	done < ".prep.txt"
-rm ".prep.txt"
+	done < "prep.txt"
+	echo "presque fini"
+rm "prep.txt"
 }
 
-
 function arrangeFiles() {
+echo "tu es dans arrange"
 #$1 Archive
-iteration=$(GetHeader archive_1 | egrep '^directory' | wc -l)
-
-for (( i = 1; i < $iteration; i++ )); do
-
-	GetEchelon $1 $i | sed '/^\s*$/d'> .temp.txt
-	PathDossier=$( cat .temp.txt | sed '1q;d' | cut -d' ' -f2 | sed 's/Exemple\/Test\///g' )
+iteration=$(GetHeader $1 | egrep '^directory' | wc -l)
+echo $iteration
+for (( i = 1; i <= $iteration; i++ )); do
+	GetEchelon $1 $i | sed '/^\s*$/d'> temp.txt
+	PathDossier=$(pwd)'serveur/'$( cat temp.txt | sed '1q;d' | cut -d' ' -f2 | sed 's/Exemple\/Test\///g' )
 	while IFS= read -r ligne; do
-		mv -f $(GetFileName $ligne) $PathDossier
+		mv -i $(GetFileName $ligne) $PathDossier
 
-	done < <(tail -n +2 .temp.txt)
-	rm ".temp.txt"
+	done < <(tail -n +2 temp.txt)
+	rm "temp.txt"
+
 done
 
 }
 
 
-makeFiles $1
-arrangeFiles $1
+#makeFiles $1
+#arrangeFiles $1
+
+sendmsg() {
+nc -q 1 $SERVER $PORT  <<< "$ARCHIVE $1 $2 $3 $4"
+#c'est très sale
+}
+
+browse_vsh() {
+local currentPath="/"
+local cmd path
+while [[ $cmd != "quit" ]]; do
+        read -p "vsh:>" cmd arg
+
+case $cmd in
+        "pwd")
+                echo $currentPath
+                ;;
+        "ls")
+                sendmsg $cmd $currentPath $arg
+                ;;
+        "cd")
+              #il faut taper par exemple cd A/ (le '/' est important, je ferais l'autre cas demain)
+#sinon cd .. marche parfaitement
+                newpath=$(sendmsg "$cmd $arg $currentPath")
+                echo $newpath
+                        if [[ $newpath =~ ^\/.* ]]; then
+                oldpath=$currentPath
+                currentPath=$newpath
+                        else
+                        echo "wrong path"
+                        fi
+                ;;
+        "cat") #quasi bon, ne pas oublier de mettre une condition sur le lien actuel 
+                sendmsg $cmd $arg $currentPath
+                ;;
+        "rm") #le cancer 
+                sendmsg $cmd $arg $currentPath
+                ;;
+esac
+
+done
+}

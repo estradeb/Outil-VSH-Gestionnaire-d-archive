@@ -1,0 +1,24 @@
+#!/bin/bash
+
+$option=$1
+$serveur=$2
+$port=$3
+$achive=$4
+
+case option in 
+          list)       vsh_list ;;
+          
+          browse)     vsh_browse ;;
+          
+          extract)    vsh_extract ;;
+          
+esac
+
+
+          
+function vsh_list {
+	if [check_serv && check_port]; then
+		ls GetPath
+	fi
+}
+

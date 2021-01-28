@@ -10,16 +10,6 @@
                 	fi
         	}
 
-function GetHeader() {
-    ligne=$(cat $1 | grep '^[0-9]*:[0-9]*') 
-    ligneHeader=$(echo $ligne | cut -d ':' -f1)
-    ligneBody=$(echo $ligne | cut -d ':' -f2)
-    ligneBody=$(($ligneBody-1))
-
-    #cat $1 | head -n ${ligneBody} | tail -n ${ligneHeader}
-    cat $1 | sed -n  "${ligneHeader},${ligneBody}p"
-}
-
 
 	list() 
 		{
@@ -130,17 +120,6 @@ function GetHeader() {
 	}
 
 
-	function rmdirectory() {
-		#archive en argument 1
-		#nom du dossier a supprimer argument 2
-		header=$(GetHeader $1)
-		IFS=
-		start=$(echo header | grep -e $2)
-		#| cut -d':' -f1 
-		echo $start
-	}
-	rmdirectory archive_1 A1
-
 	CheckPort() { #verifie si le port est correct
 		port=$1
 		if [[ $port =~ ^[0-9]+$ ]] && [[ $port -ge 1 && $port -le 47823 ]]; then #verifie si le port est bien un nombre inférieur à 47823
@@ -188,6 +167,14 @@ function GetHeader() {
 	}
 
 
+	GetHeader() {
+    		ligneHeader=$(cat $1  | grep -o "^[0-9]")
+    		ligneBody=$(cat $1  | grep -o "[0-9]*$")
+   		ligneBody=$(($ligneBody-1))
+
+   		 #cat $1 | head -n ${ligneBody} | tail -n ${ligneHeader}
+  		cat $1 | sed -n  "${ligneHeader},${ligneBody}p"
+	}
 
 
 	GetLNHeader() {
